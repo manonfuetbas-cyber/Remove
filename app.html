@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Recouvre — Mes factures</title>
+<style>
+:root{--papier:#F6F1E7;--encre:#1B1B18;--vert:#0F5132;--ocre:#C8791A;--gris:#6B675E}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--papier);color:var(--encre);font:17px/1.5 system-ui,sans-serif}
+main{max-width:680px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:center}
+.logo{font:700 20px Georgia,serif;color:var(--vert)}
+h1{font:700 28px/1.15 Georgia,serif;margin:20px 0 12px}
+h2{font:700 20px Georgia,serif;margin:28px 0 10px}
+button,input,textarea{font:inherit;border-radius:6px;border:2px solid var(--encre);padding:12px;width:100%;background:#fff}
+button{cursor:pointer;font-weight:700}
+.cta{background:var(--vert);border-color:var(--vert);color:#fff;padding:14px}
+.lien{width:auto;border:0;background:none;color:var(--gris);text-decoration:underline;padding:4px;font-weight:400}
+form{display:grid;gap:10px}
+.deux{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.note{font-size:14px;color:var(--gris)}
+.erreur{color:#9b1c1c;font-weight:700}
+.totaux{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
+.tot{background:#fff;border:2px solid var(--encre);border-radius:6px;padding:10px}
+.tot span{display:block;font-size:13px;color:var(--gris)}
+.tot strong{font:700 20px Georgia,serif}
+.tot.e strong{color:var(--vert)}.tot.r strong{color:var(--ocre)}
+.fact{background:#fff;border:2px solid #d9d2c3;border-radius:6px;padding:12px;margin:10px 0}
+.top{display:flex;justify-content:space-between;gap:8px}
+.act{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.act button{width:auto;padding:8px 12px;font-size:14px}
+.vide{border:2px dashed #b9b19f;border-radius:6px;padding:20px;color:var(--gris);text-align:center}
+textarea{height:340px;font-size:15px}
+</style>
+</head>
+<body>
+<main>
+<header><div class="logo">Recouvre</div><button class="lien" id="out" hidden>Se déconnecter</button></header>
+
+<section id="auth">
+<h1>Connecte-toi pour suivre tes factures.</h1>
+<form id="fa">
+<input type="email" id="em" placeholder="ton@email.fr" required aria-label="Email" autocomplete="email">
+<input type="password" id="pw" placeholder="Mot de passe (8 caractères minimum)" minlength="8" required aria-label="Mot de passe" autocomplete="current-password">
+<button class="cta" type="submit" id="login">Me connecter</button>
+<button type="button" id="signup">Créer mon compte</button>
+<p class="note" id="amsg" role="status"></p>
+</form>
+</section>
+
+<section id="app" hidden>
+<h1>Tes factures.</h1>
+<div class="totaux">
+<div class="tot"><span>Dû</span><strong id="t-due">0 €</strong></div>
+<div class="tot r"><span>Relancé</span><strong id="t-rem">0 €</strong></div>
+<div class="tot e"><span>Encaissé</span><strong id="t-paid">0 €</strong></div>
+</div>
+
+<h2>Ajouter une facture</h2>
+<form id="ff">
+<input id="cn" placeholder="Nom du client" required maxlength="200" aria-label="Nom du client">
+<input id="ce" type="email" placeholder="Email du client" required aria-label="Email du client">
+<div class="deux">
+<input id="am" inputmode="decimal" placeholder="Montant en €" required aria-label="Montant en euros">
+<input id="dd" type="date" required aria-label="Date d'échéance">
+</div>
+<button class="cta" type="submit">Ajouter la facture</button>
+<p class="note erreur" id="fmsg" role="status"></p>
+</form>
+
+<h2>Suivi</h2>
+<div id="list"></div>
+
+<section id="lettre" hidden>
+<h2>Ta lettre de mise en demeure</h2>
+<p class="note">Remplace les mots entre crochets. Envoie-la de préférence en recommandé avec accusé de réception. C'est un modèle : fais-le relire si le montant est important.</p>
+<textarea id="lt" aria-label="Lettre de mise en demeure"></textarea>
+<div class="deux"><button class="cta" id="cp">Copier la lettre</button><button id="fl">Fermer</button></div>
+</section>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb=supabase.createClient('https://qilavmcjodqvjeenrjim.supabase.co','sb_publishable_Rdf6W_QAHG9aFC50jG1Ygg_Fa_KTGp8');
+const $=id=>document.getElementById(id);
+const fmt=c=>(c/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const LAB={due:'À relancer',reminded:'Relancée',paid:'Encaissée'};
+const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+let inv=[];
+
+function montrer(s){
+  $('auth').hidden=!!s;$('app').hidden=!s;$('out').hidden=!s;
+  if(s)charger();
+}
+async function charger(){
+  const {data,error}=await sb.from('invoices').select('*').order('due_date');
+  if(error){$('fmsg').textContent='Impossible de charger tes factures. Recharge la page.';return}
+  inv=data;afficher();
+}
+function afficher(){
+  const T={due:0,reminded:0,paid:0};
+  inv.forEach(i=>T[i.status]+=i.amount_cents);
+  $('t-due').textContent=fmt(T.due);$('t-rem').textContent=fmt(T.reminded);$('t-paid').textContent=fmt(T.paid);
+  const L=$('list');L.replaceChildren();
+  if(!inv.length){L.append(h('div','vide','Aucune facture pour l\'instant. Ajoute la première ci-dessus : ça prend 20 secondes.'));return}
+  inv.forEach(i=>{
+    const c=h('div','fact'),top=h('div','top');
+    top.append(h('strong','',i.client_name),h('span','',fmt(i.amount_cents)));
+    const retard=Math.floor((Date.now()-new Date(i.due_date))/864e5);
+    c.append(top,h('div','note','Échéance '+new Date(i.due_date).toLocaleDateString('fr-FR')+(i.status!=='paid'&&retard>0?' · '+retard+' j de retard':'')+' · '+LAB[i.status]));
+    const a=h('div','act');
+    const b=(t,f)=>{const x=h('button','',t);x.onclick=f;a.append(x)};
+    if(i.status==='due')b('Marquer relancée',()=>maj(i.id,'reminded'));
+    if(i.status!=='paid'){b('Encaissée',()=>maj(i.id,'paid'));b('Mise en demeure',()=>lettre(i))}
+    b('Supprimer',()=>{if(confirm('Supprimer cette facture ?'))sup(i.id)});
+    c.append(a);L.append(c);
+  });
+}
+async function maj(id,s){await sb.from('invoices').update({status:s}).eq('id',id);charger()}
+async function sup(id){await sb.from('invoices').delete().eq('id',id);charger()}
+
+function lettre(i){
+  const d=new Date().toLocaleDateString('fr-FR'),e=new Date(i.due_date).toLocaleDateString('fr-FR');
+  $('lt').value="[VOTRE NOM OU RAISON SOCIALE]\n[VOTRE ADRESSE]\n[VOTRE SIRET]\n\n"+i.client_name+"\n[ADRESSE DU CLIENT]\n\nFait à [VILLE], le "+d+"\n\nObjet : Mise en demeure de payer — facture n° [N° DE FACTURE]\n\nMadame, Monsieur,\n\nMalgré mes relances, ma facture n° [N° DE FACTURE], d'un montant de "+fmt(i.amount_cents)+", échue le "+e+", demeure impayée à ce jour.\n\nPar la présente, je vous mets en demeure de me régler la somme de "+fmt(i.amount_cents)+" dans un délai de 8 jours à compter de la réception de ce courrier.\n\nÀ défaut de paiement dans ce délai, les pénalités de retard prévues seront exigibles de plein droit, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement (articles L. 441-10 et D. 441-5 du Code de commerce). Je me réserve par ailleurs le droit d'engager toute procédure de recouvrement.\n\nDans l'attente de votre règlement, je vous prie d'agréer, Madame, Monsieur, mes salutations distinguées.\n\n[VOTRE NOM]";
+  $('lettre').hidden=false;$('lettre').scrollIntoView();
+}
+$('fl').onclick=()=>{$('lettre').hidden=true};
+$('cp').onclick=function(){navigator.clipboard.writeText($('lt').value);this.textContent='Lettre copiée'};
+
+$('ff').onsubmit=async e=>{
+  e.preventDefault();$('fmsg').textContent='';
+  const m=Math.round(parseFloat($('am').value.replace(',','.'))*100);
+  if(!(m>0)){$('fmsg').textContent='Entre un montant supérieur à 0.';return}
+  const {error}=await sb.from('invoices').insert({client_name:$('cn').value.trim(),client_email:$('ce').value.trim(),amount_cents:m,due_date:$('dd').value});
+  if(error){$('fmsg').textContent='La facture n\'a pas pu être enregistrée. Réessaie.';return}
+  $('ff').reset();charger();
+};
+
+async function auth(mode){
+  const email=$('em').value.trim(),password=$('pw').value;
+  if(!email||password.length<8){$('amsg').textContent='Entre ton email et un mot de passe de 8 caractères minimum.';return}
+  $('amsg').textContent='';
+  if(mode==='in'){
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    if(error)$('amsg').textContent='Email ou mot de passe incorrect, ou compte pas encore confirmé.';
+  }else{
+    const {data,error}=await sb.auth.signUp({email,password});
+    if(error)$('amsg').textContent='Création impossible : '+error.message;
+    else if(!data.session)$('amsg').textContent='Compte créé. Vérifie ta boîte mail pour confirmer, puis connecte-toi.';
+  }
+}
+$('fa').onsubmit=e=>{e.preventDefault();auth('in')};
+$('signup').onclick=()=>auth('up');
+$('out').onclick=()=>sb.auth.signOut();
+sb.auth.getSession().then(({data})=>montrer(data.session));
+sb.auth.onAuthStateChange((_e,s)=>montrer(s));
+</script>
+</body>
+</html>
