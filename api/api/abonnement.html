@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Recouvre — Active tes relances</title>
+<style>
+:root{--papier:#F6F1E7;--encre:#1B1B18;--vert:#0F5132;--ocre:#C8791A;--gris:#6B675E}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--papier);color:var(--encre);font:17px/1.55 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:24px 16px 48px}
+.logo{font:700 20px Georgia,serif;color:var(--vert)}
+h1{font:700 30px/1.15 Georgia,serif;margin:18px 0 10px}
+h2{font:700 20px Georgia,serif;margin:30px 0 10px}
+.garantie{border:2px solid var(--vert);background:#e8efe6;border-radius:6px;padding:12px 14px;margin:14px 0}
+.garantie strong{color:var(--vert)}
+.bloc{border-left:4px solid var(--ocre);padding:4px 0 4px 14px;margin:18px 0}
+.formules{display:grid;gap:10px;margin:14px 0}
+.formule{display:block;background:#fff;border:2px solid #d9d2c3;border-radius:6px;padding:14px;cursor:pointer}
+.formule.sel{border-color:var(--vert);box-shadow:0 0 0 2px var(--vert)}
+.formule input{margin-right:8px}
+.formule .prix{font:700 22px Georgia,serif}
+.formule .jour{color:var(--gris);font-size:14px}
+.tag{display:inline-block;background:var(--ocre);color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px}
+.note{font-size:14px;color:var(--gris)}
+.erreur{color:#9b1c1c;font-weight:700}
+input[type=email],input[type=password],button{font:inherit;border-radius:6px;border:2px solid var(--encre);padding:12px;width:100%;background:#fff}
+button{cursor:pointer;font-weight:700}
+.cta{background:var(--vert);border-color:var(--vert);color:#fff}
+form{display:grid;gap:10px;margin:10px 0}
+details{background:#fff;border:2px solid #d9d2c3;border-radius:6px;padding:12px 14px;margin:8px 0}
+summary{font-weight:700;cursor:pointer}
+footer{margin-top:36px;font-size:13px;color:var(--gris)}
+</style>
+</head>
+<body>
+<main>
+<div class="logo">Recouvre</div>
+<h1>Voilà ton plan, prêt.</h1>
+<p>Ton diagnostic est fait et ton premier message de relance est écrit. Il reste à faire partir les relances toutes seules, à 7, 15 et 30 jours, puis à préparer ta mise en demeure.</p>
+
+<div class="garantie"><strong>Satisfait ou remboursé pendant 7 jours.</strong> Écris à <a href="mailto:manonfuetbas@gmail.com">manonfuetbas@gmail.com</a> dans les 7 jours qui suivent ton paiement : tu es remboursé en totalité, sans justification, sous 5 jours ouvrés.</div>
+
+<div class="bloc" id="calcul" hidden></div>
+
+<h2>Choisis ta formule</h2>
+<div class="formules">
+<label class="formule" id="l-annuel"><input type="radio" name="f" value="annuel" checked><span class="prix">290 € par an</span><span class="tag">2 mois offerts</span><br><span class="jour">soit 0,79 € par jour, factures illimitées</span></label>
+<label class="formule" id="l-mensuel"><input type="radio" name="f" value="mensuel"><span class="prix">29 € par mois</span><br><span class="jour">soit 0,95 € par jour, factures illimitées</span></label>
+</div>
+
+<section id="compte" hidden>
+<h2>Crée ton compte pour continuer</h2>
+<form id="fa">
+<input type="email" id="em" placeholder="ton@email.fr" required aria-label="Email" autocomplete="email">
+<input type="password" id="pw" placeholder="Mot de passe (8 caractères minimum)" minlength="8" required aria-label="Mot de passe" autocomplete="new-password">
+<button class="cta" type="submit">Continuer vers le paiement</button>
+<button type="button" id="deja">J'ai déjà un compte</button>
+<p class="note erreur" id="amsg" role="status"></p>
+</form>
+</section>
+
+<section id="paiement" hidden>
+<p><strong>Sans engagement, résiliable à tout moment :</strong> ton abonnement s'arrête à la fin de la période payée.</p>
+<div id="checkout"></div>
+<p class="note erreur" id="err" role="status"></p>
+</section>
+
+<h2>Questions fréquentes</h2>
+<details><summary>Est-ce que ça marche pour mon cas ?</summary><p>Recouvre est fait pour les indépendants et les petites structures qui facturent d'autres professionnels. Si tes clients sont des particuliers, la lettre de mise en demeure ne sera pas adaptée.</p></details>
+<details><summary>Combien de temps ça me prend ?</summary><p>Environ 20 secondes par facture : tu saisis le client, le montant et l'échéance. Ensuite, les relances partent sans toi.</p></details>
+<details><summary>Que se passe-t-il si je veux arrêter ?</summary><p>Tu m'écris un email et ton abonnement s'arrête à la fin de la période payée. Dans les 7 premiers jours, tu es remboursé en totalité.</p></details>
+<details><summary>À quoi sert exactement ce que je paie ?</summary><p>À des factures illimitées, des relances écrites envoyées à tes clients à 7, 15 et 30 jours avec ton adresse en réponse, une lettre de mise en demeure prête à envoyer, et un tableau en euros de ce qui est dû, relancé et encaissé.</p></details>
+
+<footer>Paiement sécurisé par Stripe. Tes données de carte ne passent jamais par ce site.</footer>
+</main>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb=supabase.createClient('https://qilavmcjodqvjeenrjim.supabase.co','sb_publishable_Rdf6W_QAHG9aFC50jG1Ygg_Fa_KTGp8');
+const stripe=Stripe('pk_test_51UeyOYPxTgsDQ0jzyhkpl24CUGKvA63mkWoJv66gmLJS7mo3vQKFcAmRAFdx98fUCC8nC0Wc3M1ba8Bzvq8bvhVf00kshekSM2');
+const $=id=>document.getElementById(id);
+let checkout=null,formule='annuel',mode='up';
+
+try{
+  const du=parseInt(localStorage.getItem('rc_du'));
+  if(du>0){
+    const pct=(29/du*100).toLocaleString('fr-FR',{maximumFractionDigits:1});
+    $('calcul').textContent='Tu as chiffré environ '+du.toLocaleString('fr-FR')+' € en attente. Recouvre coûte 29 € par mois, soit '+pct+' % de cette somme.';
+    $('calcul').hidden=false;
+  }
+}catch(e){}
+
+document.querySelectorAll('input[name=f]').forEach(r=>r.onchange=()=>{
+  formule=r.value;
+  $('l-annuel').classList.toggle('sel',formule==='annuel');
+  $('l-mensuel').classList.toggle('sel',formule==='mensuel');
+  monter();
+});
+$('l-annuel').classList.add('sel');
+
+async function monter(){
+  if(checkout){checkout.destroy();checkout=null}
+  $('err').textContent='';
+  const {data:{session}}=await sb.auth.getSession();
+  $('compte').hidden=!!session;$('paiement').hidden=!session;
+  if(!session)return;
+  try{
+    checkout=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>{
+      const r=await fetch('/api/create-checkout',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({formule})});
+      const d=await r.json();
+      if(!r.ok||!d.clientSecret)throw new Error('paiement');
+      return d.clientSecret;
+    }});
+    checkout.mount('#checkout');
+  }catch(e){$('err').textContent='Le paiement n\'a pas pu démarrer. Recharge la page et réessaie.'}
+}
+
+$('deja').onclick=()=>{mode=mode==='up'?'in':'up';$('deja').textContent=mode==='up'?'J\'ai déjà un compte':'Créer un nouveau compte'};
+$('fa').onsubmit=async e=>{
+  e.preventDefault();$('amsg').textContent='';
+  const email=$('em').value.trim(),password=$('pw').value;
+  if(mode==='in'){
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    if(error){$('amsg').textContent='Email ou mot de passe incorrect.';return}
+  }else{
+    const {data,error}=await sb.auth.signUp({email,password});
+    if(error){$('amsg').textContent='Création impossible : '+error.message;return}
+    if(!data.session){$('amsg').textContent='Compte créé. Confirme ton email, puis reviens sur cette page.';return}
+  }
+  monter();
+};
+monter();
+</script>
+</body>
+</html>
