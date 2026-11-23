@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recouvre — Ton diagnostic en 3 questions</title>
+<meta name="description" content="3 questions pour chiffrer ce que tes factures impayées te coûtent, et repartir avec ton premier message de relance.">
+<meta property="og:title" content="Recouvre — Ton diagnostic en 3 questions">
+<meta property="og:description" content="Chiffre tes factures impayées et récupère ton premier message de relance.">
+<style>
+:root{--papier:#F6F1E7;--encre:#1B1B18;--vert:#0F5132;--ocre:#C8791A;--gris:#6B675E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--papier);color:var(--encre);font:18px/1.55 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:32px 20px 40px}
+.logo{font:700 20px Georgia,serif;color:var(--vert)}
+h1{font:700 32px/1.15 Georgia,serif;margin:20px 0 16px}
+h1 em{font-style:normal;color:var(--ocre)}
+.barre{height:6px;background:#d9d2c3;border-radius:3px;margin:24px 0 8px}
+.barre span{display:block;height:100%;background:var(--vert);border-radius:3px}
+.note{font-size:14px;color:var(--gris)}
+button,input,textarea{font:inherit;border-radius:6px;border:2px solid var(--encre);width:100%}
+.choix{display:block;text-align:left;padding:18px;margin:10px 0;background:#fff;cursor:pointer}
+.choix:active{background:#eadfc8}
+.cta{padding:16px;margin:16px 0 8px;background:var(--vert);border-color:var(--vert);color:#fff;font-weight:700;cursor:pointer}
+.chiffre{font:700 44px/1 Georgia,serif;color:var(--ocre);margin:8px 0}
+.bloc{border-left:4px solid var(--ocre);padding:4px 0 4px 16px;margin:20px 0}
+textarea{padding:14px;height:300px;background:#fff;font-size:16px}
+.verrou{padding:14px;margin:8px 0;border:2px dashed #b9b19f;color:var(--gris);border-radius:6px}
+.verrou strong{display:block;color:var(--encre)}
+input{padding:16px;background:#fff}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const Q=[
+{t:"Combien de factures sont impayées en ce moment ?",o:[["1 seule",1],["2 à 5",3],["Plus de 5",7]]},
+{t:"Quel est le montant moyen d'une de ces factures ?",o:[["Moins de 500 €",300],["500 à 2 000 €",1200],["Plus de 2 000 €",3000]]},
+{t:"Depuis quand la plus ancienne attend-elle ?",o:[["Moins d'un mois",15],["1 à 3 mois",60],["Plus de 3 mois",120]]}
+];
+const R=[],app=document.getElementById('app');
+const eur=n=>n.toLocaleString('fr-FR')+' €';
+
+function q(i){
+  app.innerHTML='<div class="logo">Recouvre</div><div class="barre"><span style="width:'+((i+1)/3*100)+'%"></span></div><p class="note">Question '+(i+1)+' sur 3</p><h1>'+Q[i].t+'</h1>'+
+    Q[i].o.map((o,j)=>'<button class="choix" data-j="'+j+'">'+o[0]+'</button>').join('');
+  app.querySelectorAll('.choix').forEach(b=>b.onclick=()=>{R[i]=Q[i].o[b.dataset.j];if(i<2){q(i+1)}else{res()}});
+}
+
+function res(){
+  const n=R[0][1],m=R[1][1],j=R[2][1],du=n*m;
+  const h=(n*0.75).toLocaleString('fr-FR',{maximumFractionDigits:1});
+  app.innerHTML='<div class="logo">Recouvre</div><p class="note">Ton diagnostic</p>'+
+  '<h1>Aujourd\'hui, environ</h1><div class="chiffre">'+eur(du)+'</div><h1>t\'attendent sur ton compte.</h1>'+
+  '<div class="bloc"><p>Tu as dit : '+R[0][0].toLowerCase()+' impayée(s), '+R[1][0].toLowerCase()+' en moyenne, la plus ancienne attend depuis '+R[2][0].toLowerCase()+'.</p></div>'+
+  '<p>Plus tu attends, plus la facture devient difficile à réclamer. Relancer à la main, c\'est environ <strong>'+h+' h</strong> de rédaction et de gêne (estimation : 3 relances par facture, 15 min chacune).</p>'+
+  '<p>Avec Recouvre, les relances partent seules à <strong>7, 15 et 30 jours</strong>, et la mise en demeure est prête si rien ne bouge.</p>'+
+  '<button class="cta" id="go">Voir mon premier message de relance</button>';
+  document.getElementById('go').onclick=gout;
+}
+
+function gout(){
+  const m=R[1][1];
+  const msg="Objet : Rappel — facture en attente de règlement\n\nBonjour,\n\nSauf erreur de ma part, ma facture n° [N° DE FACTURE], d'un montant d'environ "+eur(m)+", n'a pas encore été réglée. Son échéance était le [DATE D'ÉCHÉANCE].\n\nPourriez-vous me confirmer la date de règlement prévue ?\n\nCordialement,\n[VOTRE NOM]";
+  app.innerHTML='<div class="logo">Recouvre</div><h1>Voilà ton premier message.</h1>'+
+  '<p>Remplace les mots entre crochets, ajuste le montant, et envoie-le. C\'est gratuit, il est à toi.</p>'+
+  '<textarea id="msg" aria-label="Message de relance"></textarea>'+
+  '<button class="cta" id="cp">Copier le message</button>'+
+  '<h1>Et ensuite ?</h1>'+
+  '<div class="verrou"><strong>Relance à 15 jours</strong>Verrouillé, ouvre à la sortie de Recouvre</div>'+
+  '<div class="verrou"><strong>Relance à 30 jours et mise en demeure</strong>Verrouillé, ouvre à la sortie de Recouvre</div>'+
+  '<div class="verrou"><strong>Tableau dû / relancé / encaissé</strong>Verrouillé, ouvre à la sortie de Recouvre</div>'+
+  '<p>Recouvre n\'est pas encore ouvert. Laisse ton email : tu seras prévenu(e) dès l\'ouverture, sans paiement demandé.</p>'+
+  '<form action="https://api.web3forms.com/submit" method="POST">'+
+  '<input type="hidden" name="access_key" value="d902c82d-fbc2-456e-b916-fc1a5c5d3c8f">'+
+  '<input type="hidden" name="subject" value="Nouvelle inscription - tunnel Recouvre">'+
+  '<input type="hidden" name="diagnostic" value="'+R.map(r=>r[0]).join(' | ')+'">'+
+  '<input type="email" name="email" placeholder="ton@email.fr" required aria-label="Ton adresse email">'+
+  '<button class="cta" type="submit">Me prévenir à l\'ouverture, c\'est gratuit</button></form>';
+  document.getElementById('msg').value=msg;
+  document.getElementById('cp').onclick=function(){navigator.clipboard.writeText(document.getElementById('msg').value);this.textContent='Message copié'};
+}
+q(0);
+</script>
+</body>
+</html>
