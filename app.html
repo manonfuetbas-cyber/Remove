@@ -92,9 +92,13 @@ const LAB={due:'À relancer',reminded:'Relancée',paid:'Encaissée'};
 const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
 let inv=[];
 
-function montrer(s){
-  $('auth').hidden=!!s;$('app').hidden=!s;$('out').hidden=!s;
-  if(s)charger();
+async function montrer(s){
+  $('auth').hidden=!!s;$('app').hidden=true;$('out').hidden=!s;
+  if(!s)return;
+  const {data}=await sb.from('subscriptions').select('status').eq('user_id',s.user.id).maybeSingle();
+  if(data&&(data.status==='active'||data.status==='trialing')){$('app').hidden=false;charger()}
+  else{location.href='abonnement.html'}
+
 }
 async function charger(){
   const {data,error}=await sb.from('invoices').select('*').order('due_date');
